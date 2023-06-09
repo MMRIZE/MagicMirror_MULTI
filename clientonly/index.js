@@ -22,7 +22,9 @@
 		}
 
 		// Prefer command line arguments over environment variables
-		["address", "port"].forEach((key) => {
+		//["address", "port"].forEach((key) => {
+		// (MULTI) Add client, config, layout, css, display, parameters.
+		["address", "port", "client"].forEach((key) => {
 			config[key] = getCommandLineParameter(key, process.env[key.toUpperCase()]);
 		});
 
@@ -79,6 +81,8 @@
 	const prefix = config.tls ? "https://" : "http://";
 
 	// Only start the client if a non-local server was provided
+	// (MULTI) It has no meaning especially for multi-screen/client usage
+	/*
 	if (["localhost", "127.0.0.1", "::1", "::ffff:127.0.0.1", undefined].indexOf(config.address) === -1) {
 		getServerConfig(`${prefix}${config.address}:${config.port}/config/`)
 			.then(function (configReturn) {
@@ -120,4 +124,46 @@
 	} else {
 		fail();
 	}
+	*/
+	// (MULTI) Should be executable in local server also (for multi-screen/client usage)
+	getServerConfig(`${prefix}${config.address}:${config.port}/config/`)
+		.then(function (configReturn) {
+			// Pass along the server config via an environment variable
+			const env = Object.create(process.env);
+			const options = { env: env };
+			configReturn.address = config.address;
+			configReturn.port = config.port;
+			configReturn.tls = config.tls;
+			configReturn.client = config?.client ?? "";
+			env.config = JSON.stringify(configReturn);
+
+			// Spawn electron application
+			const electron = require("electron");
+			const child = require("child_process").spawn(electron, ["js/electron.js"], options);
+
+			const clientIdf = config.client ? `[${config.client}]` : "";
+
+			// Pipe all child process output to current stdout
+			child.stdout.on("data", function (buf) {
+				process.stdout.write(`Client${clientIdf}: ${buf}`);
+			});
+
+			// Pipe all child process errors to current stderr
+			child.stderr.on("data", function (buf) {
+				process.stderr.write(`Client${clientIdf}: ${buf}`);
+			});
+
+			child.on("error", function (err) {
+				process.stdout.write(`Client${clientIdf}: ${err}`);
+			});
+
+			child.on("close", (code) => {
+				if (code !== 0) {
+					console.log(`There something wrong. The clientonly is not running code ${code}`);
+				}
+			});
+		})
+		.catch(function (reason) {
+			fail(`Unable to connect to server: (${reason})`);
+		});
 })();

@@ -348,7 +348,7 @@ const Module = Class.extend({
 	 * @param {*} payload The payload of the notification.
 	 */
 	sendSocketNotification: function (notification, payload) {
-		this.socket().sendNotification(notification, payload);
+		this.socket().sendNotification(notification, payload, globalThis?.mmClient ?? null);
 	},
 
 	/**

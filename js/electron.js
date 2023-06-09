@@ -6,6 +6,10 @@ const Log = require("./logger");
 
 // Config
 let config = process.env.config ? JSON.parse(process.env.config) : {};
+
+// (MULTI) standalone or multi-client
+const isStandalone = !Boolean(config?.client);
+
 // Module to control application life.
 const app = electron.app;
 // If ELECTRON_DISABLE_GPU is set electron is started with --disable-gpu flag.
@@ -20,6 +24,18 @@ const BrowserWindow = electron.BrowserWindow;
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow;
+
+/**
+ * (MULTI) Replace config values with client specific values
+ * @param {object} origin the original config
+ * @param {string} client the client name
+ * @returns {object} the composed config
+ * @private
+ */
+const composeClientConfig = (origin, client) => {
+	const found = (origin.clients || []).find((c) => c?.client === client);
+	return !found ? origin : { ...origin, ...found };
+};
 
 /**
  *
@@ -68,7 +84,7 @@ function createWindow() {
 	}
 
 	let address = (config.address === void 0) | (config.address === "") ? (config.address = "localhost") : config.address;
-	mainWindow.loadURL(`${prefix}${address}:${config.port}`);
+	mainWindow.loadURL(`${prefix}${address}:${config.port}` + (isStandalone ? "" : `/?client=${config.client}`));
 
 	// Open the DevTools if run with "npm start dev"
 	if (process.argv.includes("dev")) {
@@ -149,8 +165,11 @@ app.on("activate", function () {
  *
  * Note: this is only used if running Electron. Otherwise
  * core.stop() is called by process.on("SIGINT"... in `app.js`
+ *
+ * (MULTI) But in multi-client mode, it will not stop the server.
  */
 app.on("before-quit", async (event) => {
+	if (!isStandalone) return;
 	Log.log("Shutting down server...");
 	event.preventDefault();
 	setTimeout(() => {
@@ -170,12 +189,20 @@ app.on("certificate-error", (event, webContents, url, error, certificate, callba
 
 // Start the core application if server is run on localhost
 // This starts all node helpers and starts the webserver.
-if (["localhost", "127.0.0.1", "::1", "::ffff:127.0.0.1", undefined].includes(config.address)) {
+
+// (MULTI) But in multi-client mode, it will not start the server.
+if (["localhost", "127.0.0.1", "::1", "::ffff:127.0.0.1", undefined].includes(config.address) && isStandalone) {
 	core.start().then((c) => {
 		config = c;
 		app.whenReady().then(() => {
 			Log.log("Launching application.");
 			createWindow();
 		});
+	});
+} else {
+	config = composeClientConfig(config, config?.client ? config.client : null);
+	app.whenReady().then(() => {
+		Log.log("Launching application.");
+		createWindow();
 	});
 }

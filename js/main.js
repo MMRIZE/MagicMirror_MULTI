@@ -23,6 +23,10 @@ const MM = (function () {
 			}
 
 			const wrapper = selectWrapper(module.data.position);
+			if (!wrapper) {
+				Log.error(`Invalid position '${module.data.position}' for module: ${module.name}`);
+				return;
+			}
 
 			const dom = document.createElement("div");
 			dom.id = module.identifier;
@@ -72,13 +76,19 @@ const MM = (function () {
 	 * @returns {HTMLElement | void} the wrapper element
 	 */
 	const selectWrapper = function (position) {
-		const classes = position.replace("_", " ");
+		// (MULTI) compatible to legacy region system.
+		const legacyPositions = ["top_bar", "top_left", "top_center", "top_right", "upper_third", "middle_center", "lower_third", "bottom_left", "bottom_center", "bottom_right", "bottom_bar", "fullscreen_above", "fullscreen_below"];
+		const classes = legacyPositions.includes(position) ? position.replace("_", " ") : position;
+		//const classes = position.replace("_", " ");
 		const parentWrapper = document.getElementsByClassName(classes);
 		if (parentWrapper.length > 0) {
 			const wrapper = parentWrapper[0].getElementsByClassName("container");
 			if (wrapper.length > 0) {
 				return wrapper[0];
 			}
+		} else {
+			Log.warn(`Cannot find wrapper for: ${position}`);
+			return null;
 		}
 	};
 
@@ -331,8 +341,11 @@ const MM = (function () {
 	 * the update notification is hidden. The top bar still occupies space making for
 	 * an ugly top margin. By using this function, the top bar will be hidden if the
 	 * update notification is not visible.
+	 *
+	 * (MULTI) It would be better check '.region' instead of each position.
 	 */
 	const updateWrapperStates = function () {
+		/*
 		const positions = ["top_bar", "top_left", "top_center", "top_right", "upper_third", "middle_center", "lower_third", "bottom_left", "bottom_center", "bottom_right", "bottom_bar", "fullscreen_above", "fullscreen_below"];
 
 		positions.forEach(function (position) {
@@ -348,6 +361,21 @@ const MM = (function () {
 
 			wrapper.style.display = showWrapper ? "block" : "none";
 		});
+		*/
+		// (MULTI) Check .region not each position string
+		const regions = document.getElementsByClassName("region");
+		for (let region of Array.from(regions)) {
+			const moduleWrappers = region.getElementsByClassName("module");
+
+			let showWrapper = false;
+			Array.prototype.forEach.call(moduleWrappers, function (moduleWrapper) {
+				if (moduleWrapper.style.position === "" || moduleWrapper.style.position === "static") {
+					showWrapper = true;
+				}
+			});
+
+			region.style.display = showWrapper ? "block" : "none";
+		}
 	};
 
 	/**
@@ -362,7 +390,7 @@ const MM = (function () {
 			return;
 		}
 
-		config = Object.assign({}, defaults, config);
+		config = { ...defaults, ...config };
 		/* eslint-enable */
 	};
 
