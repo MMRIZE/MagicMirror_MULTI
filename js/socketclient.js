@@ -39,12 +39,22 @@ const MMSocket = function (moduleName) {
 		}
 	});
 
+	this.socket.on("connect_error", (err) => {
+		console.warn("[MMSocket] Connection Error, the MM Server might be gone.", err);
+	});
+
 	// Public Methods
 	this.setNotificationCallback = (callback) => {
 		notificationCallback = callback;
 	};
 
-	this.sendNotification = (notification, payload = {}) => {
-		this.socket.emit(notification, payload);
+	/**
+	 * Send a notification to the node helper.
+	 * @param {string} notification The identifier of the notification.
+	 * @param {object} payload The payload of the notification.
+	 * @param {string | null} client The client id to send the notification to.
+	 */
+	this.sendNotification = (notification, payload = {}, client) => {
+		this.socket.emit(notification, payload, client);
 	};
 };

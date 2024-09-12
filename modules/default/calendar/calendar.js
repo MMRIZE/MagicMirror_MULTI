@@ -96,6 +96,9 @@ Module.register("calendar", {
 
 		Log.info(`Starting module: ${this.name}`);
 
+		// (MULTI) set Identifier for multi clients case
+		this.cid = this.identifier + globalThis.mmClient ? `_${globalThis.mmClient}` : "";
+
 		if (this.config.colored) {
 			Log.warn("Your are using the deprecated config values 'colored'. Please switch to  'coloredSymbol' & 'coloredText'!");
 			this.config.coloredText = true;
@@ -164,10 +167,10 @@ Module.register("calendar", {
 	// Override socket notification handler.
 	socketNotificationReceived: function (notification, payload) {
 		if (notification === "FETCH_CALENDAR") {
-			this.sendSocketNotification(notification, { url: payload.url, id: this.identifier });
+			this.sendSocketNotification(notification, { url: payload.url, id: this.cid });
 		}
 
-		if (this.identifier !== payload.id) {
+		if (this.cid !== payload.id) {
 			return;
 		}
 
@@ -677,7 +680,7 @@ Module.register("calendar", {
 	 */
 	addCalendar: function (url, auth, calendarConfig) {
 		this.sendSocketNotification("ADD_CALENDAR", {
-			id: this.identifier,
+			id: this.cid, // (MULTI)
 			url: url,
 			excludedEvents: calendarConfig.excludedEvents || this.config.excludedEvents,
 			maximumEntries: calendarConfig.maximumEntries || this.config.maximumEntries,

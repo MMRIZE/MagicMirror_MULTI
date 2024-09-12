@@ -34,8 +34,9 @@ const NodeHelper = Class.extend({
 	 * This method is called when a socket notification arrives.
 	 * @param {string} notification The identifier of the notification.
 	 * @param {*}  payload The payload of the notification.
+	 * @param {string | null} client The client that sent the notification. (MULTI)
 	 */
-	socketNotificationReceived(notification, payload) {
+	socketNotificationReceived(notification, payload, client = null) {
 		Log.log(`${this.name} received a socket notification: ${notification} - Payload: ${payload}`);
 	},
 
@@ -99,9 +100,10 @@ const NodeHelper = Class.extend({
 			};
 
 			// register catch all.
-			socket.on("*", (notification, payload) => {
+			// (MULTI) Add client parameter to socketNotificationReceived
+			socket.on("*", (notification, payload, client) => {
 				if (notification !== "*") {
-					this.socketNotificationReceived(notification, payload);
+					this.socketNotificationReceived(notification, payload, client);
 				}
 			});
 		});
